@@ -1,0 +1,35 @@
+# Configuration de static-web-server (https://static-web-server.net)
+[general]
+host = "::"
+port = 8080
+root = "/public"
+log-level = "warn"
+
+# Les fichiers .br/.gz sont générés au build : on les sert tels quels, sans compresser à la volée.
+compression = false
+compression-static = true
+
+# En-têtes de cache gérés ci-dessous, en-têtes de sécurité activés.
+cache-control-headers = false
+security-headers = true
+directory-listing = false
+health = true
+
+[advanced]
+
+# Fichiers versionnés par Vite (hash dans le nom) : cache d'un an.
+[[advanced.headers]]
+source = "/assets/**"
+[advanced.headers.headers]
+Cache-Control = "public, max-age=31536000, immutable"
+
+# Page et fichiers SEO : toujours revalidés pour voir les mises à jour tout de suite.
+[[advanced.headers]]
+source = "/{,index.html,robots.txt,sitemap.xml}"
+[advanced.headers.headers]
+Cache-Control = "public, max-age=0, must-revalidate"
+
+[[advanced.headers]]
+source = "/og.jpg"
+[advanced.headers.headers]
+Cache-Control = "public, max-age=86400"
