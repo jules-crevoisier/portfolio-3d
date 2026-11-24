@@ -1047,7 +1047,8 @@ function frame() {
   const time = clock.getElapsedTime(); const dt = Math.min(0.05, time - last); last = time;
   const max = Math.max(1, document.documentElement.scrollHeight - innerHeight);
   const locked = fly.card || window.__legalOpen();
-  const pTarget = locked ? pCur : warp(clamp01(scrollY / max));
+  // pendant un trajet déclenché par un lien, on ignore les paliers : la caméra file d'une traite jusqu'à la cible
+  const pTarget = locked ? pCur : window.__travel ? clamp01(scrollY / max) : warp(clamp01(scrollY / max));
   // scroll amorti, sans aimantation : on ne revient jamais en arrière tout seul
   pCur += (pTarget - pCur) * Math.min(1, dt * 5.5); if (Q.has('snap')) pCur = pTarget; if (Math.abs(pTarget - pCur) < 1e-5) pCur = pTarget;
   look.yaw += (look.ty - look.yaw) * Math.min(1, dt * 6); look.pitch += (look.tp - look.pitch) * Math.min(1, dt * 6);

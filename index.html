@@ -87,6 +87,7 @@ a{color:inherit}
 .brand{font:900 26px/1 var(--disp);font-stretch:62%;text-transform:uppercase;text-decoration:none;color:var(--cream);letter-spacing:.01em}
 .brand em{font-style:normal;color:var(--pink)}
 .nav{display:flex;gap:26px}
+.nav,.ticks{transition:opacity .8s var(--ease)}body.navlock .nav{opacity:0;pointer-events:none;visibility:hidden}body.navlock .ticks{pointer-events:none}body.navlock .ticks button{cursor:default}
 .nav .lnk{height:44px;font-size:19px}
 .nav .lnk::after{bottom:8px;transform:scaleX(0)}
 .ticks{position:fixed;right:max(18px,2vw);top:50%;transform:translateY(-50%);z-index:5;display:flex;flex-direction:column;gap:2px}
@@ -191,7 +192,7 @@ body.dragging{cursor:grabbing}
 @media (prefers-reduced-motion:reduce){.ln>span,.w,.fx,.panel,.roll>span{transition-duration:.01s!important;transition-delay:0s!important}}
 </style>
 </head>
-<body>
+<body class="navlock">
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 <filter id="rough"><feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="3" seed="4"/><feDisplacementMap in="SourceGraphic" scale="5"/></filter>
 </svg>
@@ -215,7 +216,6 @@ body.dragging{cursor:grabbing}
 <h1 class="disp" id="h-hero" data-lines="Jules|Crevoisier"></h1>
 <p class="tagg fx" aria-hidden="true">23 h, Troyes</p>
 <p class="body" data-words>Bonsoir, moi c'est Jules. Je développe surtout côté serveur : des API en Node.js, des bases PostgreSQL, et Docker pour que tout tourne pareil chez moi et en prod. Entrez, c'est ici que je code.</p>
-<div class="row fx"><a class="btn" href="#" data-go="2"><span class="roll"><span data-t="Voir mes projets">Voir mes projets</span></span></a><a class="lnk" href="#" data-go="6"><span class="roll"><span data-t="Me contacter">Me contacter</span></span><span class="ar" aria-hidden="true">↗</span></a></div>
 </section>
 
 <section class="sec s1" data-stop="1" aria-labelledby="h-parcours">
@@ -446,9 +446,9 @@ let travel = null;
 const go = i => { const from = scrollY, to = STOPS[i] * maxS(), d = Math.abs(to - from) / maxS(); if (d < 0.001) return;
   const dur = Math.min(4200, 1400 + d * 5200), t0 = performance.now(); if (travel) cancelAnimationFrame(travel);
   const ez = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-  const stepT = now => { const k = Math.min(1, (now - t0) / dur); scrollTo(0, from + (to - from) * ez(k)); travel = k < 1 ? requestAnimationFrame(stepT) : null; };
+  const stepT = now => { const k = Math.min(1, (now - t0) / dur); scrollTo(0, from + (to - from) * ez(k)); travel = k < 1 ? requestAnimationFrame(stepT) : null; window.__travel = !!travel; };
   document.documentElement.style.scrollBehavior = 'auto'; travel = requestAnimationFrame(stepT); };
-['wheel', 'touchstart', 'keydown'].forEach(ev => addEventListener(ev, () => { if (travel) { cancelAnimationFrame(travel); travel = null; } }, { passive: true }));
+['wheel', 'touchstart', 'keydown'].forEach(ev => addEventListener(ev, () => { if (travel) { cancelAnimationFrame(travel); travel = null; window.__travel = false; } }, { passive: true }));
 document.querySelectorAll('[data-go]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); go(+a.dataset.go); }));
 
 const secs = [...document.querySelectorAll('.sec')], tickBtns = [...ticks.children], hint = document.querySelector('.hint');
@@ -467,6 +467,8 @@ window.__ui = {
     let ni = 0; STOPS.forEach((s, i) => { if (Math.abs(p - s) < Math.abs(p - STOPS[ni])) ni = i; });
     tickBtns.forEach((b, i) => b.classList.toggle('on', i === ni));
     hint.style.opacity = p < 0.015 && open > 0.9 && !looked ? 1 : 0;
+    // les raccourcis (menu, repères) ne servent qu'une fois la visite terminée
+    if (p > 0.97 && document.body.classList.contains('navlock')) document.body.classList.remove('navlock');
   },
   openProject(i) {
     const p = P[i];
