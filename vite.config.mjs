@@ -1,7 +1,8 @@
 import { defineConfig, loadEnv } from 'vite';
 import { gzipSync, brotliCompressSync, constants } from 'node:zlib';
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { minify } from 'html-minifier-terser';
 
 // Génère robots.txt et sitemap.xml à partir de VITE_SITE_URL, puis pré-compresse
 // (gzip + brotli) les fichiers texte pour que le serveur statique les serve tels quels.
@@ -19,7 +20,18 @@ function seoAndCompress(siteUrl) {
         source: `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>${siteUrl}/</loc><lastmod>${today}</lastmod></url>\n</urlset>\n`,
       });
     },
-    closeBundle() {
+    async closeBundle() {
+      // minifie index.html (CSS et scripts en ligne compris)
+      const html = join(outDir, 'index.html');
+      // la feuille des polices (~4 Ko) est mise en ligne : une requête bloquante de moins avant le premier affichage
+      let page = readFileSync(html, 'utf8').replace(/<link rel="stylesheet"[^>]*href="\/(assets\/[^"]+\.css)"[^>]*>/g, (m, f) => {
+        const css = readFileSync(join(outDir, f), 'utf8'); rmSync(join(outDir, f)); return `<style>${css}</style>`;
+      });
+      writeFileSync(html, page);
+      writeFileSync(html, await minify(readFileSync(html, 'utf8'), {
+        collapseWhitespace: true, conservativeCollapse: true, removeComments: true,
+        minifyCSS: true, minifyJS: { module: false, compress: true, mangle: true }, keepClosingSlash: false,
+      }));
       const walk = d => readdirSync(d).flatMap(f => { const p = join(d, f); return statSync(p).isDirectory() ? walk(p) : [p]; });
       for (const f of walk(outDir)) {
         if (!/\.(html|js|css|svg|xml|txt|json)$/.test(f)) continue;
@@ -42,6 +54,8 @@ export default defineConfig(({ mode }) => {
       reportCompressedSize: false,
       chunkSizeWarningLimit: 800, // three.js seul pèse ~500 ko minifié (~130 ko en brotli)
       modulePreload: { polyfill: false },
+      // three.js dans son propre fichier : il reste en cache quand seul le code du site change
+      rolldownOptions: { output: { advancedChunks: { groups: [{ name: 'three', test: /node_modules[\/]three/ }] } } },
     },
     plugins: [seoAndCompress(siteUrl)],
   };
