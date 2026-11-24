@@ -204,9 +204,11 @@ function beam(from, to, radius, color, opacity = 0.18) {
   m.position.copy(from); m.lookAt(to); m.rotateX(-Math.PI / 2); scene.add(m); return m;
 }
 
+let _soft = null;
+const softTex = () => _soft || (_soft = canvasTex(64, 64, (c) => { const r = c.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,255,255,.9)'); r.addColorStop(.45, 'rgba(255,255,255,.35)'); r.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = r; c.fillRect(0, 0, 64, 64); }));
 // ---------- ROOM ----------
 function buildRoom({ doorOpen = 0 } = {}) {
-  const EGG = { screens: [], posters: [] };
+  const EGG = { screens: [], posters: [], leaves: [], bulbs: [] };
   const wallM = toon(PAL.wall, { rim: 0 }), wall2M = toon(PAL.wall2, { rim: 0 }), floorM = toon(PAL.floor, { rim: 0 }), woodM = toon(PAL.wood), darkM = toon('#1c1726'), fabM = toon(PAL.fabric), fab2M = toon(PAL.fabric2), whiteM = toon('#e9dfd0');
   box(6.4, 0.2, 6.4, floorM, 0, -0.1, 0, 0.02);
   // floor planks lines
@@ -228,7 +230,7 @@ function buildRoom({ doorOpen = 0 } = {}) {
   const console_ = box(0.5, 0.12, 0.3, toon('#2a2440'), -1.6, 1.49, 3.05, 0.03); const cart = box(0.12, 0.16, 0.03, glow(PAL.keyA, 1.6), -1.25, 1.5, 3.05, 0.01); const cart2 = box(0.12, 0.16, 0.03, glow(PAL.keyB, 1.6), -1.08, 1.5, 3.05, 0.01); for (const m of [console_, cart, cart2]) m.userData.egg = 'console'; EGG.console = [cart, cart2];
   // neon sign
   const neon = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.55), new THREE.MeshBasicMaterial({ map: canvasTex(512, 256, (g, w, h) => { g.font = '900 170px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; const c = DIR === 2 ? '#ffcf6b' : '#' + new THREE.Color(PAL.keyA).getHexString(); g.shadowColor = c; g.shadowBlur = 24; g.fillStyle = c; g.fillText('</>', w / 2, h / 2 + 6); g.shadowBlur = 0; g.fillStyle = '#fff6ec'; g.fillText('</>', w / 2, h / 2 + 6); }), transparent: true, toneMapped: false })); neon.material.color.setScalar(2.2); neon.position.set(-1.65, 2.25, WZ + 0.12); scene.add(neon);
-  const nl = new THREE.PointLight(DIR === 2 ? 0xffcf6b : PAL.keyA, 6, 3.5, 1.6); nl.position.set(-1.65, 2.2, WZ + 0.5); scene.add(nl);
+  const nl = new THREE.PointLight(DIR === 2 ? 0xffcf6b : PAL.keyA, 6, 3.5, 1.6); nl.position.set(-1.65, 2.2, WZ + 0.5); scene.add(nl); EGG.neon = { m: neon.material, l: nl };
   // window frame + panes
   const frameM = toon('#efe2cf');
   box(1.7, 0.08, 0.3, frameM, 0.8, 1.0, WZ + 0.05); box(1.7, 0.08, 0.3, frameM, 0.8, 2.3, WZ + 0.05);
@@ -236,6 +238,9 @@ function buildRoom({ doorOpen = 0 } = {}) {
   box(1.8, 0.06, 0.4, frameM, 0.8, 0.97, WZ + 0.2); // sill
   const sky = new THREE.Mesh(new THREE.PlaneGeometry(9, 4.5), new THREE.MeshBasicMaterial({ map: skyTex(), toneMapped: false, fog: false }));
   sky.position.set(0.8, 1.9, WZ - 2.2); scene.add(sky);
+  // étoile filante qui passe de temps en temps derrière la fenêtre
+  { const sm = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.03), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, fog: false, map: canvasTex(128, 8, (g, w, h) => { const lg = g.createLinearGradient(0, 0, w, 0); lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(.85, 'rgba(255,240,220,.9)'); lg.addColorStop(1, 'rgba(255,255,255,1)'); g.fillStyle = lg; g.fillRect(0, 0, w, h); }) }));
+    sm.material.color.setScalar(3); sm.visible = false; scene.add(sm); EGG.star = sm; }
   // door
   const doorPivot = new THREE.Group(); doorPivot.position.set(2.0, 0, WZ + 0.05); scene.add(doorPivot);
   const door = box(0.88, 2.08, 0.07, toon(PAL.wood, { rim: .3 }), 0.44, 1.04, 0, 0.02, doorPivot);
@@ -243,6 +248,14 @@ function buildRoom({ doorOpen = 0 } = {}) {
   const knob = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), toon('#e8c070')); knob.position.set(0.8, 1.0, 0.08); doorPivot.add(knob);
   doorPivot.rotation.y = doorOpen * 1.25;
   box(0.06, 2.15, 0.26, frameM, 1.98, 1.07, WZ + 0.05); box(0.06, 2.15, 0.26, frameM, 2.92, 1.07, WZ + 0.05); box(1.0, 0.06, 0.26, frameM, 2.45, 2.13, WZ + 0.05);
+  // horloge au-dessus de la porte : elle avance avec le scroll (23 h au début, 2 h à la fin)
+  { const ck = new THREE.Group(); ck.position.set(2.45, 2.5, WZ + 0.12); scene.add(ck);
+    ck.add(new THREE.Mesh(new THREE.CircleGeometry(0.19, 40), toon('#efe2cf', { rim: 0 })));
+    const rimC = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.022, 8, 40), toon(PAL.wood, { rim: .4 })); ck.add(rimC);
+    for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; const tk = new THREE.Mesh(new THREE.PlaneGeometry(k % 3 ? 0.008 : 0.016, k % 3 ? 0.025 : 0.04), toon('#1c1726', { rim: 0 })); tk.position.set(Math.sin(a) * 0.155, Math.cos(a) * 0.155, 0.004); tk.rotation.z = -a; ck.add(tk); }
+    const hand = (len, w, col, z) => { const pv = new THREE.Group(); pv.position.z = z; ck.add(pv); const hm = new THREE.Mesh(new THREE.PlaneGeometry(w, len), new THREE.MeshBasicMaterial({ color: col })); hm.position.y = len / 2 - 0.02; pv.add(hm); return pv; };
+    EGG.clock = { h: hand(0.1, 0.02, 0x1c1726, 0.008), m: hand(0.15, 0.013, 0x1c1726, 0.01), s: hand(0.16, 0.005, 0xff3d8b, 0.012) };
+    const pin = new THREE.Mesh(new THREE.CircleGeometry(0.014, 12), new THREE.MeshBasicMaterial({ color: 0xff3d8b })); pin.position.z = 0.014; ck.add(pin); }
   // portal behind door
   const portal = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 2.1), portalMat.clone()); portal.material.uniforms.spawn.value = 0; portal.position.set(2.45, 1.04, WZ - 0.06); scene.add(portal);
   const voidBox = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.6, 7), new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide, fog: false })); voidBox.position.set(2.45, 1.1, WZ - 3.55); scene.add(voidBox);
@@ -261,6 +274,8 @@ function buildRoom({ doorOpen = 0 } = {}) {
   box(0.6, 0.03, 0.2, darkM, -1.7, 0.81, -2.32, 0.01); // keyboard
   for (let i = 0; i < 12; i++) box(0.035, 0.012, 0.035, glow(i % 2 ? PAL.keyA : PAL.keyB, 1.5), -1.97 + i * .05, 0.83, -2.32, 0.005);
   const mug = cyl(0.045, 0.04, 0.1, toon(PAL.fabric2), -0.95, 0.84, -2.35); mug.userData.egg = 'mug'; EGG.mug = mug;
+  // vapeur du café
+  { const st = softTex(); EGG.steam = [0, 1, 2, 3].map(() => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: st, color: 0xfff2e0, transparent: true, depthWrite: false, opacity: 0 })); scene.add(sp); return sp; }); }
   // canard en plastique (debug)
   const duck = new THREE.Group(); duck.position.set(-0.78, 0.8, -2.5); duck.rotation.y = 0.7; scene.add(duck); EGG.duck = duck;
   const dM = toon('#ffd23f', { rim: .6 }); const db = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 12), dM); db.scale.set(1.25, 0.8, 1); db.position.y = 0.055; const dh = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 12), dM); dh.position.set(0.05, 0.13, 0); const dbk = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.05, 8), toon('#ff8a2a')); dbk.rotation.z = -Math.PI / 2; dbk.position.set(0.105, 0.125, 0);
@@ -287,15 +302,15 @@ function buildRoom({ doorOpen = 0 } = {}) {
   const p3 = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.84), new THREE.MeshToonMaterial({ map: posterTex(2), gradientMap: gradMap })); p3.rotation.y = Math.PI / 2; p3.position.set(-2.99, 2.05, -1.2); scene.add(p3);
   // plants
   const plant = (x, z, s) => { cyl(0.13 * s, 0.1 * s, 0.25 * s, toon('#c8693e'), x, 0.125 * s, z);
-    for (let i = 0; i < 9; i++) { const lf = new THREE.Mesh(new THREE.SphereGeometry(0.11 * s, 10, 8), toon(i % 2 ? '#2f8f6a' : '#4fb07a')); lf.scale.set(0.5, 1.6, 0.25); lf.position.set(x + Math.cos(i) * .08 * s, (0.35 + rnd() * .25) * s, z + Math.sin(i) * .08 * s); lf.rotation.set(rr(-.6, .6), i, Math.cos(i) * .7); lf.castShadow = true; scene.add(lf); } };
+    for (let i = 0; i < 9; i++) { const lf = new THREE.Mesh(new THREE.SphereGeometry(0.11 * s, 10, 8), toon(i % 2 ? '#2f8f6a' : '#4fb07a')); lf.scale.set(0.5, 1.6, 0.25); lf.position.set(x + Math.cos(i) * .08 * s, (0.35 + rnd() * .25) * s, z + Math.sin(i) * .08 * s); lf.rotation.set(rr(-.6, .6), i, Math.cos(i) * .7); lf.castShadow = true; scene.add(lf); lf.userData.r0 = lf.rotation.clone(); lf.userData.ph = rr(0, 6); EGG.leaves.push(lf); } };
   plant(-0.45, -2.75, 1.2); plant(1.55, -2.7, 0.8); plant(-2.75, -0.4, 1.6);
   // rug
   const rug = new THREE.Mesh(new THREE.CircleGeometry(1.1, 48), toon(PAL.fabric2, { rim: 0 })); rug.rotation.x = -Math.PI / 2; rug.position.set(-0.4, 0.012, 0.2); rug.receiveShadow = true; scene.add(rug);
   const rug2 = new THREE.Mesh(new THREE.RingGeometry(0.8, 0.9, 48), toon(PAL.fabric, { rim: 0 })); rug2.rotation.x = -Math.PI / 2; rug2.position.set(-0.4, 0.014, 0.2); scene.add(rug2);
   // string lights along back wall top + left wall
   const bulbM = glow(DIR === 2 ? '#ffd9a0' : PAL.keyA, 4), bulbM2 = glow(DIR === 2 ? '#fff1cc' : PAL.keyB, 4);
-  for (let i = 0; i <= 26; i++) { const t = i / 26; const x = -2.95 + t * 5.9; const y = 2.95 - Math.sin(t * Math.PI * 3) ** 2 * 0.22; const b = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), i % 2 ? bulbM : bulbM2); b.position.set(x, y, WZ + 0.16); scene.add(b); b.userData.egg = 'lights'; }
-  EGG.bulbM = [bulbM, bulbM2];
+  for (let i = 0; i <= 26; i++) { const t = i / 26; const x = -2.95 + t * 5.9; const y = 2.95 - Math.sin(t * Math.PI * 3) ** 2 * 0.22; const b = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), i % 2 ? bulbM : bulbM2); b.position.set(x, y, WZ + 0.16); scene.add(b); b.userData.egg = 'lights'; b.userData.p0 = b.position.clone(); EGG.bulbs.push(b); }
+  EGG.bulbM = [bulbM, bulbM2]; EGG.bulbC = [bulbM.color.clone().multiplyScalar(1 / 4), bulbM2.color.clone().multiplyScalar(1 / 4)];
   // window light
   const winCol = DIR === 2 ? 0xffc06a : PAL.keyA;
   const sun = new THREE.SpotLight(winCol, DIR === 2 ? 22 : 18, 12, 0.5, 0.6, 1.2); sun.position.set(0.9, 3.2, WZ - 2.5); sun.target.position.set(-0.6, 0, 0.3); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.001; scene.add(sun, sun.target);
@@ -306,7 +321,7 @@ function buildRoom({ doorOpen = 0 } = {}) {
   scene.add(new THREE.HemisphereLight(PAL.hemiSky, PAL.hemiGround, DIR === 2 ? 0.45 : 0.18));
   const fill = new THREE.DirectionalLight(PAL.keyB, DIR === 2 ? 0.4 : 0.8); fill.position.set(4, 3, 4); scene.add(fill);
   dust(DIR === 2 ? 500 : 250, new THREE.Vector3(2.5, 1.4, 2.5), new THREE.Vector3(-0.3, 1.5, -0.5), DIR === 2 ? 0xffe0a0 : 0xd8c8ff, 0.035);
-  return { portal, doorPivot, pl, ceiling, eggs: EGG };
+  return { portal, doorPivot, pl, ceiling, eggs: EGG, WZ };
 }
 
 // ---------- GALLERY DIMENSION ----------
@@ -341,7 +356,7 @@ function buildGallery() {
       box(1.32, 1.68, 0.06, cardFrameM, 0, 0, -0.04, 0.05, g);
       const pi = i % PROJECTS.length; const face = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 1.6), new THREE.MeshBasicMaterial({ map: cardTex(pi), toneMapped: false })); face.material.color.setScalar(1.08); face.position.z = 0.0; g.add(face);
       const back = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 1.6), new THREE.MeshBasicMaterial({ map: cardBack(), toneMapped: false })); back.rotation.y = Math.PI; back.position.z = -0.075; g.add(back);
-      g.rotateZ(rr(-.2, .2)); g.userData = { pi, face, back }; face.userData.card = g; back.userData.card = g; cards.push(g);
+      g.rotateZ(rr(-.2, .2)); g.userData = { pi, face, back, p0: g.position.clone(), q0: g.quaternion.clone(), ph: rr(0, 6.28) }; face.userData.card = g; back.userData.card = g; cards.push(g);
     }
     if (DIR === 3) { // laser beams
       for (let i = 0; i < 10; i++) beam(new THREE.Vector3(rr(-6, 6), -4, rr(-30, -6)), new THREE.Vector3(rr(-2, 2), 6, rr(-20, 0)), 0.05, i % 2 ? PAL.keyA : PAL.keyB, 0.5);
@@ -385,10 +400,12 @@ function buildSection() {
   scene.add(new THREE.HemisphereLight(PAL.hemiSky, PAL.hemiGround, 1.0));
   const key = new THREE.DirectionalLight(PAL.keyB, 2.5); key.position.set(6, 8, 3); key.castShadow = true; key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12 }); scene.add(key);
   const rockM = toon(DIR === 2 ? '#8a4a3a' : '#3b3560', { rim: 0.6 }), grassM = toon(DIR === 2 ? '#d89a50' : DIR === 3 ? '#4a2a7a' : '#2f8f7a', { rim: .3 });
+  SC.isles = []; SC.rings = [];
   const island = (x, y, z, s) => {
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(1.6 * s, 1.3 * s, .35 * s, 9), grassM); top.position.set(x, y, z); top.castShadow = top.receiveShadow = true; scene.add(top);
-    const bot = new THREE.Mesh(new THREE.ConeGeometry(1.3 * s, 2.6 * s, 9), rockM); bot.rotation.x = Math.PI; bot.position.set(x, y - 1.45 * s, z); bot.castShadow = true; scene.add(bot);
-    for (let i = 0; i < 4; i++) { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rr(.12, .3) * s, 0), rockM); r.position.set(x + rr(-1, 1) * s, y + .25 * s, z + rr(-1, 1) * s); r.castShadow = true; scene.add(r); }
+    const G = new THREE.Group(); scene.add(G); if (s < 2) SC.isles.push({ g: G, ph: rr(0, 6), a: 0.08 + 0.1 / s });
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(1.6 * s, 1.3 * s, .35 * s, 9), grassM); top.position.set(x, y, z); top.castShadow = top.receiveShadow = true; G.add(top);
+    const bot = new THREE.Mesh(new THREE.ConeGeometry(1.3 * s, 2.6 * s, 9), rockM); bot.rotation.x = Math.PI; bot.position.set(x, y - 1.45 * s, z); bot.castShadow = true; G.add(bot);
+    for (let i = 0; i < 4; i++) { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rr(.12, .3) * s, 0), rockM); r.position.set(x + rr(-1, 1) * s, y + .25 * s, z + rr(-1, 1) * s); r.castShadow = true; G.add(r); }
     return top;
   };
   island(0, -1.2, -4, 2.0);
@@ -406,7 +423,7 @@ function buildSection() {
   }
   if (DIR === 3) { // holographic stage: rings + chrome spheres
     const stage = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.8, .3, 48), toon('#1a1028', { rim: .9 })); stage.position.set(0, -0.85, -4); stage.receiveShadow = true; scene.add(stage);
-    for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(1.6 + i * .45, .03, 8, 120), glow(i % 2 ? PAL.keyB : PAL.keyA, 4)); r.position.set(0, 1.2, -4); r.rotation.set(1.1 + i * .3, i * .5, 0); scene.add(r); }
+    for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(1.6 + i * .45, .03, 8, 120), glow(i % 2 ? PAL.keyB : PAL.keyA, 4)); r.position.set(0, 1.2, -4); r.rotation.set(1.1 + i * .3, i * .5, 0); scene.add(r); SC.rings.push(r); }
     const orb = new THREE.Mesh(new THREE.SphereGeometry(.8, 48, 48), toon('#ffcc4d', { rim: 1.2 })); orb.position.set(0, 1.2, -4); scene.add(orb); orb.userData.egg = 'orb';
     for (let i = 0; i < 12; i++) beam(new THREE.Vector3(Math.cos(i) * 2.6, -0.7, -4 + Math.sin(i) * 2.6), new THREE.Vector3(Math.cos(i) * 4, 9, -4 + Math.sin(i) * 4), .06, i % 2 ? PAL.keyA : PAL.keyB, .45);
     const sl = new THREE.PointLight(PAL.keyA, 18, 15, 1.3); sl.position.set(0, 2, -2); scene.add(sl);
@@ -643,14 +660,22 @@ function buildSkills() {
   });
 }
 
-function buildSpaceDuck() {
-  const S = SKILL[0], d = new THREE.Group(); d.position.copy(S.pos).lerp(S.cam, 0.45).add(new THREE.Vector3(0, 0.55, 0)); scene.add(d);
+// le canard en plastique du bureau sert de fil rouge : il passe le portail avant nous, nous guide dans la galerie,
+// flotte en combinaison dans la dimension des compétences et revient dormir sur l'oreiller à la fin.
+function duckMesh(helmet) {
+  const d = new THREE.Group(); scene.add(d);
   const yM = toon('#ffd23f', { rim: .6 }); const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 18, 14), yM); body.scale.set(1.2, 0.85, 1); d.add(body);
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 12), yM); head.position.set(0.16, 0.2, 0); d.add(head);
   const beak = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.14, 10), toon('#ff7a3d')); beak.rotation.z = -Math.PI / 2; beak.position.set(0.32, 0.18, 0); d.add(beak);
-  const helm = new THREE.Mesh(new THREE.SphereGeometry(0.2, 18, 14), new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.25, toneMapped: false })); helm.position.copy(head.position); d.add(helm);
+  if (helmet) { const helm = new THREE.Mesh(new THREE.SphereGeometry(0.2, 18, 14), new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.25, toneMapped: false })); helm.position.copy(head.position); d.add(helm); }
   [-1, 1].forEach(k => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), toon('#140a1e')); e.position.set(0.25, 0.25, k * 0.07); d.add(e); });
-  d.traverse(o => { if (o.isMesh) o.userData.egg = 'sduck'; }); d.lookAt(S.cam); d.rotateY(-1.2); d.scale.setScalar(0.6); SC.spaceDuck = d; d.userData.base = d.position.clone();
+  d.userData.wings = [-1, 1].map(k => { const pv = new THREE.Group(); pv.position.set(-0.02, 0.08, k * 0.17); d.add(pv); const w = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 8), yM); w.scale.set(1.15, 0.3, 0.6); w.position.z = k * 0.06; pv.add(w); pv.userData.k = k; return pv; });
+  return d;
+}
+function flap(d, time, amp) { d.userData.wings.forEach(w => { w.rotation.x = w.userData.k * (0.2 + Math.sin(time * 16) * amp); }); }
+function buildSpaceDuck() {
+  const S = SKILL[0], d = duckMesh(true); d.position.copy(S.pos).lerp(S.cam, 0.45).add(new THREE.Vector3(0, 0.55, 0));
+  d.traverse(o => { if (o.isMesh) o.userData.egg = 'sduck'; }); d.lookAt(S.cam); d.rotateY(-1.2); d.scale.setScalar(0.6); SC.spaceDuck = d; d.userData.base = d.position.clone(); d.userData.spin = 0;
 }
 // ---------- construction ----------
 const SC = {};
@@ -696,6 +721,7 @@ async function build() {
     const back = new THREE.Mesh(new THREE.PlaneGeometry(W2, H2), new THREE.MeshBasicMaterial({ color: 0x07040d, fog: false })); back.position.z = -0.12; D.add(back);
     const L = new THREE.PointLight(new THREE.Color(PAL.portal[0]), 0, 16, 1.3); L.position.set(0, 0, 2.5); D.add(L);
     SC.galDoor = { D, piv, pm, tun, back, L, sparks: makeSparks(scene, 600, PAL.portal) }; }
+  SC.galDuck = duckMesh(false); SC.galDuck.scale.setScalar(0.55);
   SC.gallery = { scene, cards: gal.cards, faces: gal.cards.flatMap(c => [c.userData.face, c.userData.back]), fog: scene.fog.density };
   setProg(0.66); await tick();
   DIR = 3; PAL = PALS[3]; seed = 12345 + 3 * 77;
@@ -712,6 +738,7 @@ const roomPos = CR([V(-1.7, 1.5, 2.3), V(-1.5, 1.55, 0.6), V(-1.25, 1.45, -0.8),
 const roomLook = CR([V(-0.6, 1.3, -2.6), V(-1.3, 1.3, -2.6), V(-1.7, 1.15, -2.75), V(0.8, 1.35, -2.6), V(2.3, 1.25, -2.6), V(2.45, 1.1, -3.1), V(2.45, 1.06, -4.5), V(2.45, 1.04, -6), V(2.45, 1.04, -8), V(2.45, 1.04, -10)]);
 const footPos = CR([V(0.4, 7.5, 0.6), V(1.8, 5.2, 2.0), V(1.4, 3.2, 2.6), V(0.3, 2.2, 2.85), V(-0.55, 1.75, 2.95)]);
 const footLook = CR([V(-0.8, 0.3, 0.6), V(-1.6, 0.4, 1.2), V(-2.0, 0.6, 1.3), V(-1.95, 0.75, 0.45), V(-1.7, 0.85, 0.2)]);
+let sv = 0; // vitesse de scroll lissée, partagée par les animations d'ambiance
 const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const clamp01 = x => Math.min(1, Math.max(0, x));
@@ -729,7 +756,7 @@ function place(p, time) {
   if (key === 'room') {
     const u = roomU(t); camera.position.copy(roomPos.getPoint(u)); tmpL.copy(roomLook.getPoint(u)); camera.fov = 52 + Math.pow(sstep(0.8, 1, t), 2) * 28;
     SC.room.doorPivot.rotation.y = sstep(0.48, 0.6, t) * 1.35; roll = Math.sin(u * Math.PI) * 0.05 - Math.pow(sstep(0.84, 1, t), 2) * 0.9;
-    roomPortal(sstep(0.56, 0.72, t), time);
+    roomPortal(sstep(0.56, 0.72, t), time); roomDuck(t, time, false);
     SC.room.ceiling.visible = true; scene = SC.room.scene; look.k = 1 - sstep(0.45, 0.55, t) * 0.8;
   } else if (key === 'gallery') {
     const calm = 1 - sstep(0.55, 0.74, t), dive = t > 0.74 ? (t - 0.74) / 0.26 : 0;
@@ -740,6 +767,7 @@ function place(p, time) {
     const G = SC.galDoor; G.piv.rotation.y = -sstep(0.6, 0.7, t) * 1.5; const sp = sstep(0.66, 0.77, t);
     G.pm.material.uniforms.spawn.value = sp > 0 ? easeOutBack(sp) : 0; G.pm.material.uniforms.t.value = time; G.tun.material.uniforms.t.value = time; G.tun.material.uniforms.op.value = sstep(0.5, 1, sp);
     G.back.visible = sp < 0.5; G.L.intensity = sp * 30; updSparks(G.sparks, _c1.set(0, 0.2, -31.9), 1.6, 3.5, 2.6, sp, time);
+    galleryDuck(t, z, time);
   } else if (key === 'section') {
     if (!sectionPath) { const S = SKILL; sectionPath = { pos: CR([V(-9, 10, 12), S[0].cam, S[1].cam, S[2].cam, V(0, 14, -16)]), look: CR([V(0, 0, -4), S[0].look, S[1].look, S[2].look, V(0, 6, -10)]) }; }
     // paliers : on ralentit sur chaque objet (0.2 / 0.5 / 0.8 du segment)
@@ -750,7 +778,7 @@ function place(p, time) {
   } else {
     const e = ease(t); camera.position.copy(footPos.getPoint(e)); tmpL.copy(footLook.getPoint(e)); camera.fov = 55 - e * 5;
     SC.room.doorPivot.rotation.y = 0; SC.room.ceiling.visible = e > 0.85; roll = (1 - e) * 0.6; scene = SC.room.scene; roomPortal(0, time);
-    sleep(sstep(0.7, 1, t), time); look.k = 0.5 * sstep(0.7, 1, t);
+    sleep(sstep(0.7, 1, t), time); roomDuck(t, time, true); look.k = 0.5 * sstep(0.7, 1, t);
   }
   camera.position.x += Math.sin(time * 0.5) * 0.025; camera.position.y += Math.sin(time * 0.7) * 0.018;
   camera.aspect = W / H; camera.updateProjectionMatrix(); camera.lookAt(tmpL); camera.rotateZ(roll);
@@ -758,6 +786,33 @@ function place(p, time) {
   applyMouseFx(key === 'room' ? 1 - sstep(0.62, 0.74, t) : key === 'gallery' ? (1 - sstep(0.66, 0.76, t)) * 0.8 : key === 'section' ? 0.8 : 1);
   curKey = key; curT = t;
   return key;
+}
+// ---------- le canard, fil rouge de la visite ----------
+const DUCK_DESK = new THREE.Vector3(-0.78, 0.8, -2.5), DUCK_CTRL = new THREE.Vector3(0.9, 2.1, -1.8), DUCK_DOOR = new THREE.Vector3(2.45, 1.05, -3.2), DUCK_BED = new THREE.Vector3(-1.82, 0.735, 0.78);
+const _d0 = new THREE.Vector3(), _d1 = new THREE.Vector3();
+const bez = (out, a, c, b, k) => out.set(0, 0, 0).addScaledVector(a, (1 - k) * (1 - k)).addScaledVector(c, 2 * (1 - k) * k).addScaledVector(b, k * k);
+function roomDuck(t, time, bed) {
+  const d = SC.room.eggs.duck;
+  if (bed) { // il dort sur l'oreiller, la tête qui dodeline
+    d.visible = true; d.position.copy(DUCK_BED); d.position.y += Math.max(0, Math.sin(time * 1.1)) * 0.004; d.rotation.set(0, -1.0, 0.12 + Math.sin(time * 0.9) * 0.05); d.scale.setScalar(1); return;
+  }
+  const k = sstep(0.58, 0.71, t);
+  if (k <= 0) { // sur le bureau : il regarde autour de lui et sautille de temps en temps
+    const c = (time % 3.4) / 3.4, hop = c < 0.14 ? Math.sin(c / 0.14 * Math.PI) : 0;
+    d.visible = true; d.position.copy(DUCK_DESK); d.position.y += hop * 0.06; d.rotation.set(0, 0.7 + Math.sin(time * 0.55) * 0.45, hop * 0.15); d.scale.setScalar(1); return;
+  }
+  // la porte s'ouvre : il saute du bureau et file dans le portail avant nous
+  d.visible = k < 1; bez(d.position, DUCK_DESK, DUCK_CTRL, DUCK_DOOR, k); bez(_d1, DUCK_DESK, DUCK_CTRL, DUCK_DOOR, Math.min(1, k + 0.02)).sub(d.position);
+  d.rotation.set(0, Math.atan2(-_d1.z, _d1.x), Math.sin(time * 18) * 0.18 + Math.atan2(_d1.y, Math.hypot(_d1.x, _d1.z)) * 0.6);
+  d.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.3 - sstep(0.85, 1, k));
+}
+// galerie : il vole devant la caméra, puis plonge le premier dans la porte du fond
+function galleryDuck(t, z, time) {
+  const d = SC.galDuck, k = sstep(0.64, 0.75, t);
+  _d0.set(camera.position.x * 0.5 + 0.55 + Math.sin(time * 0.9) * 0.22, camera.position.y * 0.5 + 0.38 + Math.sin(time * 1.4) * 0.12, z - 3.1 - Math.sin(time * 0.6) * 0.3);
+  _d1.set(0, 0.2, -32.2); d.position.lerpVectors(_d0, _d1, ease(k)); d.visible = k < 1;
+  d.rotation.set(Math.sin(time * 1.4) * 0.12, Math.PI / 2 + Math.sin(time * 0.7) * 0.3 - sv * 0.4, Math.sin(time * 2.2) * 0.1);
+  d.scale.setScalar(0.55 * (1 - sstep(0.85, 1, k))); flap(d, time, 0.7 + Math.abs(sv) * 0.4);
 }
 // portail qui apparaît dans l'encadrement de la porte
 function roomPortal(spawn, time) {
@@ -774,10 +829,40 @@ function sleep(k, time) {
   if (lampOn) E.lamp.light.intensity = 14 * (1 - k * 0.75);
   document.body.style.setProperty('--sleep', k.toFixed(3));
 }
+// ---------- vie de la chambre : ce qui bouge tout seul ----------
+function roomLife(dt, time, night) {
+  const E = SC.room.eggs;
+  // horloge : 23 h en arrivant, 2 h du matin au moment de se coucher ; la trotteuse suit le vrai temps
+  const mins = 23 * 60 + pCur * 180, sec = Math.floor(time) + Math.min(1, (time % 1) * 8);
+  E.clock.h.rotation.z = -(mins / 720) * Math.PI * 2; E.clock.m.rotation.z = -(mins % 60) / 60 * Math.PI * 2; E.clock.s.rotation.z = -(sec % 60) / 60 * Math.PI * 2;
+  // le code défile sur les écrans
+  E.codeTex.forEach((tx, i) => { tx.wrapT = THREE.RepeatWrapping; if (!tx.userData.w) { tx.userData.w = 1; tx.needsUpdate = true; } tx.offset.y = (tx.offset.y + dt * (0.03 + i * 0.012)) % 1; });
+  // le néon grésille de temps en temps
+  const fl = (time % 11) < 0.6 && Math.sin(time * 47) > 0.2 ? 0.35 : 1; E.neon.m.color.setScalar(2.2 * fl); E.neon.l.intensity = 6 * fl;
+  // la guirlande scintille et se balance quand on fait défiler
+  E.bulbM.forEach((m, i) => m.color.copy(E.bulbC[i]).multiplyScalar(4 * (0.8 + 0.25 * Math.sin(time * 2.1 + i * Math.PI)) * (1 - night * 0.4)));
+  E.bulbs.forEach((b, i) => { b.position.copy(b.userData.p0); b.position.y += Math.sin(time * 1.3 + i * 0.6) * 0.006 + sv * 0.02 * Math.sin(i * 1.7); b.position.z += Math.abs(sv) * 0.02 * (1 + Math.sin(i)); });
+  // les plantes respirent
+  E.leaves.forEach(l => { const r = l.userData.r0; l.rotation.set(r.x + Math.sin(time * 1.1 + l.userData.ph) * 0.05 + sv * 0.12, r.y, r.z + Math.sin(time * 0.8 + l.userData.ph) * 0.04); });
+  // la chaise pivote doucement
+  E.chair.rotation.y = 0.35 + Math.sin(time * 0.35) * 0.1;
+  // le café fume
+  E.steam.forEach((sp, i) => { const c = (time * 0.32 + i / E.steam.length) % 1; sp.position.set(-0.95 + Math.sin(c * 5 + i) * 0.03, 0.92 + c * 0.35, -2.35); sp.scale.setScalar(0.06 + c * 0.12); sp.material.opacity = Math.sin(c * Math.PI) * 0.35 * (1 - night); });
+  // une étoile filante passe derrière la fenêtre toutes les 9 secondes environ
+  const sc = (time % 9) / 1.1; E.star.visible = sc < 1 && !night;
+  if (E.star.visible) { const W = SC.room.WZ - 2.1; E.star.position.set(-0.3 + sc * 2.3, 2.45 - sc * 0.9, W); E.star.rotation.z = -0.38; E.star.material.opacity = Math.sin(sc * Math.PI); }
+}
 function updateSkills(dt, time) {
-  const B = SKILL[1] && SKILL[1].g.userData.back; if (B) { B.boost *= Math.pow(0.4, dt); B.orbit.rotation.y += dt * (0.5 + B.boost * 5); B.hex.rotation.y = Math.sin(time * 0.8) * 0.5 + B.boost * time * 3;
+  const B = SKILL[1] && SKILL[1].g.userData.back; if (B) { B.boost *= Math.pow(0.4, dt); B.orbit.rotation.y += dt * (0.5 + B.boost * 5 + Math.abs(sv) * 2); B.hex.rotation.y = Math.sin(time * 0.8) * 0.5 + B.boost * time * 3;
     B.leds.forEach((l, i) => { l.visible = (Math.sin(time * (3 + i % 3) + i * 1.7) > -0.6) || B.boost > 0.3; }); }
-  if (SC.spaceDuck) { const d = SC.spaceDuck; d.position.y = d.userData.base.y + Math.sin(time * 0.9) * 0.15; d.rotation.z = Math.sin(time * 0.6) * 0.2; }
+  if (SC.spaceDuck) { // il nous accompagne d'un objet à l'autre, un peu en retrait
+    const d = SC.spaceDuck, mob = innerWidth < 800;
+    _d0.set(mob ? 0.45 : -1.3, mob ? 0.75 : 0.42, -2.7).applyMatrix4(camera.matrixWorld); _d0.y += Math.sin(time * 0.9) * 0.12;
+    if (!d.userData.ready) { d.position.copy(_d0); d.userData.ready = true; } d.position.lerp(_d0, 1 - Math.exp(-2.2 * dt));
+    d.lookAt(camera.position); d.rotateY(-1.2 + d.userData.spin); d.rotateZ(Math.sin(time * 0.6) * 0.2); flap(d, time, 0.25); }
+  if (SC.isles) SC.isles.forEach(o => { o.g.position.y = Math.sin(time * 0.5 + o.ph) * o.a; o.g.rotation.y = Math.sin(time * 0.2 + o.ph) * 0.03; });
+  if (SC.rings) SC.rings.forEach((r, i) => { r.rotation.z += dt * (0.25 + i * 0.12 + Math.abs(sv) * 1.5) * (i % 2 ? -1 : 1); });
+  if (SC.orb) { const pulse = 1 + Math.sin(time * 1.8) * 0.03; if (!anims.length) SC.orb.scale.setScalar(pulse); }
 }
 // paliers dans la section : la caméra s'attarde sur chaque objet
 function stepped(t) { const K = [0, 0.25, 0.5, 0.75, 1], at = [0, 0.2, 0.5, 0.8, 1]; for (let i = 0; i < 4; i++) if (t <= at[i + 1]) { const x = (t - at[i]) / (at[i + 1] - at[i]); const e = i === 0 ? x * x * (3 - 2 * x) : ease(x); return K[i] + (K[i + 1] - K[i]) * e; } return 1; }
@@ -857,7 +942,7 @@ addEventListener('pointerup', () => { drag = null; document.body.classList.remov
 
 let hover = null, eggHover = null, sel = null, dim = 0;
 const fly = { card: null, k: 0, dir: 0, from: null };
-const _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+const _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _e = new THREE.Euler();
 const TGT = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), scale: 1 };
 function cardTarget(out) {
   const d = 2.6, halfH = d * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), halfW = halfH * camera.aspect, mobile = innerWidth < 800;
@@ -889,7 +974,7 @@ function triggerEgg(kind, obj) {
   if (kind === 'sk-front') { const g = upTo(obj, 'front'), F = g.userData.front; F.n = (F.n + 1) % 3; F.scr.material.map = F.n ? frontTex[F.n] : F.tex0; F.scr.material.needsUpdate = true; const p0 = g.position.y; tween(0.5, k => { g.position.y = p0 + Math.sin(k * Math.PI) * 0.2; }); }
   if (kind === 'sk-back') { const B = upTo(obj, 'back').userData.back; B.boost = 1; B.alt = !B.alt; B.scr.material.map = B.alt ? B.T2 : B.T1; B.scr.material.needsUpdate = true; }
   if (kind === 'sk-design') { const D = upTo(obj, 'design').userData.design; const cols = ['#ff3d8b', '#35e0ff', '#ffd27a', '#2fae7a', '#8a5cff', '#ff7a3d']; upTo(obj, 'design').traverse(o => { if (o.isMesh && o.geometry.type === 'SphereGeometry') o.material.color.set(cols[Math.floor(rnd() * cols.length)]); }); D.stars.forEach(st => { const r0 = st.rotation.z; tween(0.9, k => { st.rotation.z = r0 + ease(k) * Math.PI * 2; st.scale.setScalar((st === D.stars[0] ? 1 : 0.45) * (1 + Math.sin(k * Math.PI) * 0.5)); }); }); }
-  if (kind === 'sduck') { const d = SC.spaceDuck, r0 = d.rotation.y; tween(1.1, k => { d.rotation.y = r0 + ease(k) * Math.PI * 4; d.scale.setScalar(0.6 * (1 + Math.sin(k * Math.PI) * 0.4)); }); }
+  if (kind === 'sduck') { const d = SC.spaceDuck; tween(1.1, k => { d.userData.spin = ease(k) * Math.PI * 4; d.scale.setScalar(0.6 * (1 + Math.sin(k * Math.PI) * 0.4)); }); }
   if (kind === 'orb') { const o = SC.orb, c0 = o.material.color.clone(), cols = ['#ff3d8b', '#35e0ff', '#6be3a4', '#ffcc4d']; const nc = new THREE.Color(cols[(cols.indexOf('#' + c0.getHexString()) + 1) % cols.length] || cols[0]); tween(0.7, k => { o.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.35); o.material.color.copy(c0).lerp(nc, k); }); }
   if (kind === 'lamp') { lampOn = !lampOn; E.lamp.light.intensity = lampOn ? 14 : 0; E.lamp.bulb.material.color.set(PAL.lamp).multiplyScalar(lampOn ? 5 : 0.3); }
   if (kind === 'screen') { helloOn = !helloOn; E.screens.forEach((s, i) => { s.material.map = helloOn ? E.hello : E.codeTex[i]; s.material.needsUpdate = true; }); }
@@ -899,7 +984,7 @@ function triggerEgg(kind, obj) {
   if (kind === 'poster') { const p = obj; if (p.userData.flipping) return; p.userData.flipping = true; const r0 = p.rotation.y, p0 = p.position.clone(), n = new THREE.Vector3(0, 0, 1).applyEuler(p.rotation), hw = (p.geometry.parameters.width || 0.5) / 2 + 0.03;
     // le poster se décolle du mur pendant qu'il tourne, puis se repose : il ne traverse plus la cloison
     tween(0.9, k => { const a = ease(k) * Math.PI; p.rotation.y = r0 + a; p.position.copy(p0).addScaledVector(n, Math.sin(a) * hw); if (k >= 1) { p.position.copy(p0); p.userData.flipping = false; } }); }
-  if (kind === 'lights') { lightIdx = (lightIdx + 1) % lightSets.length; E.bulbM.forEach((m, i) => m.color.set(lightSets[lightIdx][i]).multiplyScalar(4)); }
+  if (kind === 'lights') { lightIdx = (lightIdx + 1) % lightSets.length; E.bulbC.forEach((c, i) => c.set(lightSets[lightIdx][i])); }
   if (kind === 'console') { E.console.forEach((m, i) => { const base = m.material.color.clone(); tween(1.2, k => { m.material.color.copy(base).multiplyScalar(1 + Math.abs(Math.sin(k * Math.PI * 6 + i)) * 2 * (1 - k)); }); }); }
 }
 function eggOf(o) { while (o) { if (o.userData && o.userData.egg) return o; o = o.parent; } return null; }
@@ -920,7 +1005,10 @@ function updatePointer(dt, time, open) {
   if (eg !== eggHover) { eggHover = eg; document.body.classList.toggle('egg', !!eg); }
 }
 function updateGallery(dt, time) {
-  for (const c of SC.gallery.cards) { if (c === fly.card) continue; const tgt = c === hover ? 1.14 : 1; c.scale.setScalar(c.scale.x + (tgt - c.scale.x) * Math.min(1, dt * 10)); }
+  for (const c of SC.gallery.cards) { if (c === fly.card) continue; const tgt = c === hover ? 1.14 : 1; c.scale.setScalar(c.scale.x + (tgt - c.scale.x) * Math.min(1, dt * 10));
+    // les cartes flottent et frémissent quand on fait défiler, comme des feuilles dans un courant d'air
+    const U = c.userData; c.position.copy(U.p0); c.position.y += Math.sin(time * 0.8 + U.ph) * 0.07;
+    c.quaternion.copy(U.q0).multiply(_q.setFromEuler(_e.set(Math.sin(time * 0.5 + U.ph) * 0.03 + sv * 0.12 * Math.cos(U.ph), sv * 0.35 * Math.sin(U.ph * 2), Math.sin(time * 0.6 + U.ph) * 0.05))); }
   if (fly.card) {
     fly.k = clamp01(fly.k + dt / (fly.dir === 1 ? 1.25 : 0.95) * fly.dir);
     const e = ease(fly.k); cardTarget(TGT); const c = fly.card, F = fly.from;
@@ -953,7 +1041,7 @@ function warp(x) {
 }
 // ---------- boucle ----------
 const ZERO3 = new THREE.Vector3(), TINT = new THREE.Vector3(...PALS[1].shadow);
-let pCur = 0, intro = 0, started = false;
+let pCur = 0, intro = 0, started = false, pPrev = 0, drift = 0;
 const clock = new THREE.Clock(); let last = 0;
 function frame() {
   const time = clock.getElapsedTime(); const dt = Math.min(0.05, time - last); last = time;
@@ -965,9 +1053,12 @@ function frame() {
   look.yaw += (look.ty - look.yaw) * Math.min(1, dt * 6); look.pitch += (look.tp - look.pitch) * Math.min(1, dt * 6);
   if (!drag && curKey !== 'room') { look.ty *= 0.97; look.tp *= 0.97; }
   portalMat.uniforms.t.value = time;
-  updateMouseFx(dt); const key = place(pCur, time); if (key !== 'foot') document.body.style.setProperty('--sleep', 0);
-  scene.traverse(o => { if (o.isPoints && !o.userData.fixed) { o.rotation.y = time * 0.02; o.position.y = Math.sin(time * 0.3) * 0.1; } });
-  if (scene === SC.gallery.scene) { scene.children.forEach(o => { if (o.isMesh && o.geometry.type === 'OctahedronGeometry') { o.rotation.x += 0.004; o.rotation.y += 0.006; } }); }
+  const vRaw = dt > 0 ? (pCur - pPrev) / dt : 0; pPrev = pCur; sv += (THREE.MathUtils.clamp(vRaw * 10, -1.5, 1.5) - sv) * Math.min(1, dt * 4);
+  updateMouseFx(dt); const key = place(pCur, time);
+  if (scene === SC.room.scene) roomLife(dt, time, key === 'foot' ? 1 : 0); if (key !== 'foot') document.body.style.setProperty('--sleep', 0);
+  drift += dt * (0.02 + Math.abs(sv) * 0.25);
+  scene.traverse(o => { if (o.isPoints && !o.userData.fixed) { o.rotation.y = drift; o.position.y = Math.sin(time * 0.3) * 0.1; } });
+  if (scene === SC.gallery.scene) { const boost = 1 + Math.abs(sv) * 5; scene.children.forEach(o => { if (o.isMesh && o.geometry.type === 'OctahedronGeometry') { o.rotation.x += 0.24 * dt * boost; o.rotation.y += 0.36 * dt * boost; } }); }
   for (let i = anims.length - 1; i >= 0; i--) { const a = anims[i]; a.t += dt; const k = clamp01(a.t / a.dur); a.fn(k); if (k >= 1) anims.splice(i, 1); }
   const msOpen = maskState(pCur);
   intro = Math.min(1, intro + dt / 1.9);
@@ -988,5 +1079,5 @@ function frame() {
   place(0, 0); renderPass.scene = scene; composer.render(); await tick();
   const wait = Math.max(0, 1800 - (performance.now() - t0));
   let v = 0.9; const iv = setInterval(() => { v = Math.min(1, v + 0.02); setProg(v); }, 40);
-  setTimeout(() => { clearInterval(iv); setProg(1); ui.ready(); started = true; if (Q.has('snap')) intro = 1; document.title = 'Jules Crevoisier · Développeur web et designer UI à Troyes'; frame(); }, wait + 300);
+  setTimeout(() => { clearInterval(iv); setProg(1); ui.ready(); started = true; if (Q.has('snap')) intro = 1; document.title = 'Jules Crevoisier · Développeur web full-stack à Troyes'; frame(); }, wait + 300);
 })();
