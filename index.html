@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="lock loading">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -267,6 +267,11 @@ body.dragging{cursor:grabbing}
 <div id="cur" aria-hidden="true"><i class="d"></i><b></b></div>
 <div id="loader" role="status" aria-live="polite"><div class="ld"><div class="pct disp paint">0</div><p class="tagg" id="ldMsg" aria-hidden="true">Chargement de l'expérience</p></div></div>
 <script>
+// pendant le chargement : pas de scroll (molette, tactile, clavier) et retour en haut de page
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+{ const block = e => { if (document.documentElement.classList.contains('loading')) e.preventDefault(); };
+  addEventListener('wheel', block, { passive: false }); addEventListener('touchmove', block, { passive: false });
+  addEventListener('keydown', e => { if (document.documentElement.classList.contains('loading') && ['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(e.key)) e.preventDefault(); }); }
 (() => {
   const L = [
     "Démarrage des conteneurs Docker",
@@ -458,7 +463,7 @@ const proj = document.querySelector('.panel.proj'), pbody = document.getElementB
 const legal = document.querySelector('.panel.legal'), lbody = document.getElementById('lbody');
 window.__ui = {
   loader(v) { pct.textContent = Math.round(v * 100); },
-  ready() { document.getElementById('loader').classList.add('gone'); },
+  ready() { document.getElementById('loader').classList.add('gone'); scrollTo(0, 0); document.documentElement.classList.remove('lock', 'loading'); },
   looked() { looked = true; },
   update(p, open) {
     let si = -1; STOPS.forEach((s, i) => { if (Math.abs(p - s) < 0.02) si = i; });
@@ -513,7 +518,7 @@ document.querySelectorAll('[data-copy]').forEach(b => {
   });
 });
 </script>
-<noscript><style>#loader,#mask{display:none}.sec{position:static;opacity:1}.ln>span,.w,.fx{opacity:1;transform:none}#spacer{display:none}</style></noscript>
+<noscript><style>#loader,#mask{display:none}.sec{position:static;opacity:1}.ln>span,.w,.fx{opacity:1;transform:none}#spacer{display:none}html.lock{overflow:auto}</style></noscript>
 <script type="module" src="main.js"></script>
 </body>
 </html>
