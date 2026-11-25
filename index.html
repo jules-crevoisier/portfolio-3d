@@ -49,13 +49,13 @@ a{color:inherit}
 #spacer{height:1700vh}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 /* ---- typo : condensée brute (BitcoinOS) remplie de peinture (Arcane) ---- */
-.disp{font-family:var(--disp);font-weight:900;font-stretch:62%;text-transform:uppercase;line-height:.84;letter-spacing:-.012em;margin:0}
+.disp{font-family:var(--disp);font-weight:900;font-stretch:62%;text-transform:uppercase;line-height:1.02;letter-spacing:-.012em;margin:0}
 .paint{background:var(--paint,none) 0 0/420px,var(--cream);-webkit-background-clip:text;background-clip:text;color:transparent;padding-top:.24em;margin-top:-.24em;filter:url(#rough) drop-shadow(5px 6px 0 #2a0f2e)}
 .tagg{font-family:var(--tag);font-weight:400;color:var(--pink);text-shadow:0 0 26px rgba(255,61,139,.55),3px 3px 0 #2a0f2e;display:inline-block;line-height:.9;margin:0;transform:rotate(-7deg)}
 .tagg.c{color:var(--cyan);text-shadow:0 0 26px rgba(53,224,255,.5),3px 3px 0 #10213a}
 .body{margin:0;max-width:520px;font-size:clamp(19px,1.35vw,22px);line-height:1.6;font-weight:500;color:#fff6e8;text-shadow:0 1px 2px rgba(13,9,22,.95),0 2px 22px rgba(13,9,22,.95)}
 /* ---- révélations BitcoinOS ---- */
-.ln{display:block;overflow:hidden;padding:.2em .12em .04em;margin:-.2em -.12em -.04em}
+.ln{display:block;overflow:hidden;white-space:nowrap;hyphens:none;padding:.2em .12em .04em;margin:-.2em -.12em -.04em}
 .ln>span{display:block;transform:translateY(135%) rotate(-5deg);transform-origin:bottom right;opacity:0;transition:transform .9s var(--ease),opacity .9s var(--ease)}
 .ln:nth-child(even)>span{transform:translateY(135%) rotate(5deg);transform-origin:bottom left}
 .on .ln>span{transform:none;opacity:1;transition-duration:1.5s;transition-delay:calc(var(--i,0)*.1s + .1s)}
@@ -87,6 +87,7 @@ a{color:inherit}
 .brand{font:900 26px/1 var(--disp);font-stretch:62%;text-transform:uppercase;text-decoration:none;color:var(--cream);letter-spacing:.01em}
 .brand em{font-style:normal;color:var(--pink)}
 .nav{display:flex;gap:26px}
+.nav,.ticks{transition:opacity .8s var(--ease)}body.navlock .nav{opacity:0;pointer-events:none;visibility:hidden}body.navlock .ticks{pointer-events:none}body.navlock .ticks button{cursor:default}
 .nav .lnk{height:44px;font-size:19px}
 .nav .lnk::after{bottom:8px;transform:scaleX(0)}
 .ticks{position:fixed;right:max(18px,2vw);top:50%;transform:translateY(-50%);z-index:5;display:flex;flex-direction:column;gap:2px}
@@ -102,15 +103,15 @@ a{color:inherit}
 .sec.on::before{opacity:1}
 body.carded .sec{opacity:0;pointer-events:none}
 .s0{left:max(28px,6vw);right:max(60px,6vw);bottom:10vh}
-.s0 h1{font-size:clamp(84px,15.5vw,250px)}
-.s0 .tagg{font-size:clamp(40px,5.4vw,86px);position:absolute;right:max(0px,4vw);top:-.6em}
+.s0 h1{font-size:clamp(72px,min(15.5vw,21vh),250px)}
+.s0 .tagg{font-size:clamp(40px,5.4vw,86px);position:absolute;right:max(0px,4vw);top:.15em}
 .s1,.s2{left:max(28px,6vw);top:17vh;max-width:min(720px,84vw)}
-.s1 h2,.s2 h2{font-size:clamp(76px,11vw,180px)}
+.s1 h2,.s2 h2{font-size:clamp(64px,min(11vw,19vh),180px)}
 .sk{right:max(64px,7vw);top:18vh;width:min(600px,84vw);align-items:flex-end;text-align:right}
-.sk h2{font-size:clamp(76px,10vw,168px)}
+.sk h2{font-size:clamp(64px,min(10vw,18vh),168px)}
 .sk .body{max-width:470px}
 .s6{right:max(64px,7vw);top:15vh;width:min(720px,86vw);align-items:flex-end;text-align:right}
-.s6 h2{font-size:clamp(76px,11vw,184px)}
+.s6 h2{font-size:clamp(56px,min(11vw,15vh),184px)}
 .s6 .tagg{font-size:clamp(40px,4.6vw,74px);margin-top:-.35em}
 .s6 .row{justify-content:flex-end}
 .legal-row{display:flex;gap:22px;flex-wrap:wrap;justify-content:flex-end;font:800 16px var(--disp);font-stretch:62%;text-transform:uppercase;letter-spacing:.04em}
@@ -191,7 +192,7 @@ body.dragging{cursor:grabbing}
 @media (prefers-reduced-motion:reduce){.ln>span,.w,.fx,.panel,.roll>span{transition-duration:.01s!important;transition-delay:0s!important}}
 </style>
 </head>
-<body>
+<body class="navlock">
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 <filter id="rough"><feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="3" seed="4"/><feDisplacementMap in="SourceGraphic" scale="5"/></filter>
 </svg>
@@ -213,40 +214,39 @@ body.dragging{cursor:grabbing}
 <main>
 <section class="sec s0" data-stop="0" aria-labelledby="h-hero">
 <h1 class="disp" id="h-hero" data-lines="Jules|Crevoisier"></h1>
-<p class="tagg fx" aria-hidden="true">dev full-stack</p>
-<p class="body" data-words>Développeur full-stack à Troyes. Je conçois des applications web complètes, de l'API Node.js au déploiement Docker, avec des interfaces soignées.</p>
-<div class="row fx"><a class="btn" href="#" data-go="2"><span class="roll"><span data-t="Voir mes projets">Voir mes projets</span></span></a><a class="lnk" href="#" data-go="6"><span class="roll"><span data-t="Me contacter">Me contacter</span></span><span class="ar" aria-hidden="true">↗</span></a></div>
+<p class="tagg fx" aria-hidden="true">23 h, Troyes</p>
+<p class="body" data-words>Bonsoir, moi c'est Jules. Je développe surtout côté serveur : des API en Node.js, des bases PostgreSQL, et Docker pour que tout tourne pareil chez moi et en prod. Entrez, c'est ici que je code.</p>
 </section>
 
 <section class="sec s1" data-stop="1" aria-labelledby="h-parcours">
-<h2 class="disp" id="h-parcours" data-lines="Du serveur|à l'écran"></h2>
-<p class="body" data-words>Étudiant en BUT MMI à l'IUT de Troyes et fondateur de vosoft, je développe des outils utilisés au quotidien : un webmail libre, une plateforme de rendez-vous, un média automatisé. Mon point fort : l'architecture back-end et la mise en production.</p>
+<h2 class="disp" id="h-parcours" data-lines="Le soir,|je code"></h2>
+<p class="body" data-words>La journée, je suis en BUT MMI à l'IUT de Troyes. Le soir, je travaille sur mes projets et sur ceux de vosoft, ma micro-entreprise. Deux écrans, un café qui refroidit, et un canard en plastique à qui j'explique mes bugs. Mes projets sont derrière la porte.</p>
 </section>
 
 <section class="sec s2" data-stop="2" aria-labelledby="h-real">
-<h2 class="disp" id="h-real" data-lines="Réali-|sations"></h2>
-<p class="body" data-words>Une sélection de projets récents : un webmail libre, un média automatisé, un éditeur de pixel art et une plateforme de rendez-vous. Cliquez sur une carte pour découvrir le projet.</p>
+<h2 class="disp" id="h-real" data-lines="Mes|projets"></h2>
+<p class="body" data-words>Un webmail, un média qui se remplit tout seul, un éditeur de pixel art, un outil de prise de rendez-vous et un emploi du temps confié à un solveur. Cliquez sur une carte, je vous montre comment c'est construit.</p>
 <ul class="sr" id="seo-projects"></ul>
 </section>
 
 <section class="sec sk" data-stop="3" aria-labelledby="h-front">
-<h2 class="disp" id="h-front" data-lines="Front-|end"></h2>
-<p class="body" data-words>Des interfaces rapides, accessibles et responsives, développées en TypeScript avec Vue, Nuxt, Next.js et Tailwind CSS.</p>
+<h2 class="disp" id="h-front" data-lines="Ce qu'on|voit"></h2>
+<p class="body" data-words>Il faut bien que les gens cliquent quelque part. Vue et Nuxt pour Colombe, Next.js pour Reservy, Tailwind presque partout. Je vérifie que ça charge vite sur un vieux téléphone et que tout marche au clavier.</p>
 </section>
 <section class="sec sk" data-stop="4" aria-labelledby="h-back">
-<h2 class="disp" id="h-back" data-lines="Node.js|&amp; Docker"></h2>
-<p class="body" data-words>Mon domaine de prédilection : API Node.js, bases de données relationnelles, conteneurisation avec Docker et déploiement continu sur Dokploy et Cloudflare.</p>
+<h2 class="disp" id="h-back" data-lines="Ce qui|tourne"></h2>
+<p class="body" data-words>Là, je suis chez moi. Patch Notes lance un script Node.js quatre fois par jour, qui lit l'actu et la range dans PostgreSQL. Chaque projet a son docker compose, et ce site se redéploie tout seul sur mon serveur à chaque push.</p>
 </section>
 <section class="sec sk" data-stop="5" aria-labelledby="h-design">
-<h2 class="disp" id="h-design" data-lines="Design|&amp; IA"></h2>
-<p class="body" data-words>J'utilise l'IA générative pour explorer rapidement des pistes visuelles, puis je sélectionne, j'affine et j'intègre chaque interface moi-même.</p>
+<h2 class="disp" id="h-design" data-lines="Et le|design&nbsp;?"></h2>
+<p class="body" data-words>Je ne suis pas designer et je ne vais pas faire semblant. Je demande des pistes visuelles à l'IA, j'en jette la plupart, et j'intègre moi-même ce qui tient la route.</p>
 </section>
 
 <section class="sec s6" data-stop="6" aria-labelledby="h-contact">
-<h2 class="disp" id="h-contact" data-lines="Un projet ?|Parlons-en"></h2>
+<h2 class="disp" id="h-contact" data-lines="Il est|tard"></h2>
 <p class="tagg c fx" aria-hidden="true">bonne nuit</p>
-<p class="body" data-words>Une application à concevoir, un outil interne à mettre en production ? Écrivez-moi à crevoisier.dj@gmail.com ou retrouvez mon code sur GitHub.</p>
-<div class="row fx"><button class="btn" type="button" data-copy="crevoisier.dj@gmail.com" aria-describedby="copy-msg"><span class="roll"><span data-t="Copier mon e-mail">Copier mon e-mail</span></span></button><a class="lnk" href="https://github.com/jules-crevoisier" rel="me"><span class="roll"><span data-t="Mon GitHub">Mon GitHub</span></span><span class="ar" aria-hidden="true">↗</span></a><a class="lnk" href="https://www.vosoft.fr/"><span class="roll"><span data-t="vosoft.fr">vosoft.fr</span></span><span class="ar" aria-hidden="true">↗</span></a></div>
+<p class="body" data-words>Je vais me coucher, le canard aussi. Une appli à construire, un serveur à remettre d'aplomb, une question sur un projet ? Écrivez-moi à crevoisier.dj@gmail.com, je lis tout.</p>
+<div class="row fx"><button class="btn" type="button" data-copy="crevoisier.dj@gmail.com" aria-describedby="copy-msg"><span class="roll"><span data-t="Copier mon e-mail">Copier mon e-mail</span></span></button><a class="lnk" href="https://github.com/jules-crevoisier" rel="me"><span class="roll"><span data-t="Mon GitHub">Mon GitHub</span></span><span class="ar" aria-hidden="true">↗</span></a><a class="lnk" href="https://www.vosoft.fr/"><span class="roll"><span data-t="vosoft.fr">vosoft.fr</span></span><span class="ar" aria-hidden="true">↗</span></a><a class="lnk" href="#" data-go="0"><span class="roll"><span data-t="Recommencer">Recommencer</span></span><span class="ar" aria-hidden="true">↺</span></a></div>
 <footer class="legal-row fx"><span>© 2026 Jules Crevoisier</span><button type="button" data-legal="mentions">Mentions légales</button><button type="button" data-legal="privacy">Confidentialité</button></footer>
 </section>
 </main>
@@ -328,7 +328,7 @@ window.__PROJECTS = [
 "cat": "Webmail libre",
 "year": "2026",
 "emblem": 0,
-"desc": "Un webmail libre sous licence AGPL-3.0, pensé pour les établissements qui hébergent leur propre serveur de messagerie. Colombe remplace Roundcube et RainLoop par une interface moderne et se connecte en IMAP à Dovecot.",
+"desc": "Je l'ai écrit pour les établissements qui hébergent leur propre messagerie et veulent autre chose que Roundcube ou RainLoop. Colombe se branche en IMAP sur Dovecot, l'interface est en Vue et Nuxt, et le code est libre sous AGPL-3.0.",
 "tech": [
 "TypeScript",
 "Vue",
@@ -345,7 +345,7 @@ window.__PROJECTS = [
 "cat": "Média automatisé",
 "year": "2026",
 "emblem": 8,
-"desc": "Un média gaming et e-sport alimenté automatiquement. Un planificateur Node.js collecte l'actualité quatre fois par jour depuis Google et des flux RSS, filtre les sujets par thème et publie des récaps en français, avec un SEO complet : sitemap, flux RSS et données structurées.",
+"desc": "Un média gaming et e-sport qui se remplit presque tout seul. Quatre fois par jour, un script Node.js lit Google Actualités et une liste de flux RSS, trie les sujets par thème et publie des récaps en français. Le sitemap, le flux RSS et les données structurées sont générés à chaque publication.",
 "tech": [
 "Node.js",
 "PostgreSQL",
@@ -362,7 +362,7 @@ window.__PROJECTS = [
 "cat": "Outil game dev",
 "year": "2026",
 "emblem": 9,
-"desc": "Un éditeur de sprites et d'animation pixel art dans le navigateur, pensé pour le game dev : dessin, timeline, tags d'animation et exports prêts à l'emploi pour Unity et Godot. Tout tourne côté client, sans serveur ni compte.",
+"desc": "Un éditeur de pixel art et d'animation qui tourne entièrement dans le navigateur, sans compte ni serveur. On dessine, on règle la timeline, on nomme ses animations, puis on exporte directement pour Unity ou Godot.",
 "tech": [
 "TypeScript",
 "Vite",
@@ -379,7 +379,7 @@ window.__PROJECTS = [
 "cat": "Prise de rendez-vous",
 "year": "2026",
 "emblem": 10,
-"desc": "Une plateforme de prise de rendez-vous : types de rendez-vous et plages de disponibilité, gestion des équipes et des responsables, invitations calendrier par e-mail. Authentification avec NextAuth et données dans PostgreSQL via Prisma.",
+"desc": "Une appli de prise de rendez-vous. On crée ses types de rendez-vous et ses disponibilités, on gère des équipes, et chaque réservation part en invitation calendrier par e-mail. Next.js côté interface, Prisma et PostgreSQL derrière, connexion avec NextAuth.",
 "tech": [
 "Next.js",
 "React",
@@ -397,7 +397,7 @@ window.__PROJECTS = [
 "cat": "Concept",
 "year": "2026",
 "emblem": 2,
-"desc": "Un concept de générateur d'emplois du temps pour le BUT MMI de l'IUT de Troyes. Les contraintes (salles, enseignants, groupes) sont modélisées puis résolues par le solveur CP-SAT, et une interface permet d'ajuster le planning obtenu.",
+"desc": "Le casse-tête de l'emploi du temps du BUT MMI, confié à un solveur. Salles, enseignants et groupes deviennent des contraintes, CP-SAT cherche un planning qui les respecte, et une interface permet de le corriger à la main. C'est encore un concept.",
 "tech": [
 "Python",
 "CP-SAT",
@@ -436,7 +436,7 @@ document.querySelectorAll('[data-words]').forEach(splitWords);
 // liste des projets lisible par les moteurs et les lecteurs d'écran
 document.getElementById('seo-projects').innerHTML = P.map(p => p.link || p.code ? `<li><a href="${p.link || p.code}">${p.title}</a> : ${p.desc}</li>` : `<li>${p.title} : ${p.desc}</li>`).join('');
 
-const STOPS = [0, 0.069, 0.44, 0.632, 0.71, 0.788, 1], NAMES = ['Accueil', 'Parcours', 'Réalisations', 'Front-end', 'Node.js et Docker', 'Design et IA', 'Contact'];
+const STOPS = [0, 0.069, 0.44, 0.632, 0.71, 0.788, 1], NAMES = ['Accueil', 'Le bureau', 'Projets', 'Front-end', 'Back-end et Docker', 'Design', 'Contact'];
 window.__STOPS = STOPS;
 const ticks = document.querySelector('.ticks');
 STOPS.forEach((s, i) => { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', NAMES[i]); b.appendChild(document.createElement('span')); b.addEventListener('click', () => go(i)); ticks.appendChild(b); });
@@ -446,9 +446,9 @@ let travel = null;
 const go = i => { const from = scrollY, to = STOPS[i] * maxS(), d = Math.abs(to - from) / maxS(); if (d < 0.001) return;
   const dur = Math.min(4200, 1400 + d * 5200), t0 = performance.now(); if (travel) cancelAnimationFrame(travel);
   const ez = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-  const stepT = now => { const k = Math.min(1, (now - t0) / dur); scrollTo(0, from + (to - from) * ez(k)); travel = k < 1 ? requestAnimationFrame(stepT) : null; };
+  const stepT = now => { const k = Math.min(1, (now - t0) / dur); scrollTo(0, from + (to - from) * ez(k)); travel = k < 1 ? requestAnimationFrame(stepT) : null; window.__travel = !!travel; };
   document.documentElement.style.scrollBehavior = 'auto'; travel = requestAnimationFrame(stepT); };
-['wheel', 'touchstart', 'keydown'].forEach(ev => addEventListener(ev, () => { if (travel) { cancelAnimationFrame(travel); travel = null; } }, { passive: true }));
+['wheel', 'touchstart', 'keydown'].forEach(ev => addEventListener(ev, () => { if (travel) { cancelAnimationFrame(travel); travel = null; window.__travel = false; } }, { passive: true }));
 document.querySelectorAll('[data-go]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); go(+a.dataset.go); }));
 
 const secs = [...document.querySelectorAll('.sec')], tickBtns = [...ticks.children], hint = document.querySelector('.hint');
@@ -467,6 +467,8 @@ window.__ui = {
     let ni = 0; STOPS.forEach((s, i) => { if (Math.abs(p - s) < Math.abs(p - STOPS[ni])) ni = i; });
     tickBtns.forEach((b, i) => b.classList.toggle('on', i === ni));
     hint.style.opacity = p < 0.015 && open > 0.9 && !looked ? 1 : 0;
+    // les raccourcis (menu, repères) ne servent qu'une fois la visite terminée
+    if (p > 0.97 && document.body.classList.contains('navlock')) document.body.classList.remove('navlock');
   },
   openProject(i) {
     const p = P[i];
